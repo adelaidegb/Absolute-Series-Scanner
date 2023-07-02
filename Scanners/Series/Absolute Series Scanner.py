@@ -83,7 +83,7 @@ PLEX_LIBRARY_URL       = "http://localhost:32400/library/sections/"  # Allow to 
 SSL_CONTEXT            = ssl.SSLContext(SSL_PROTOCOL)
 HEADERS                = {'Content-type': 'application/json'}
 
-SOURCE_IDS             = cic(ur'\[((?P<source>(anidb(|[2-4])|tvdb(|[2-6])|tmdb|tsdb|imdb|mal|youtube(|[2-3])))-(?P<id>[^\[\]]*)|(?P<yt>(PL[^\[\]]{16}|PL[^\[\]]{32}|(UU|FL|LP|RD|UC|HC)[^\[\]]{22})))\]')
+SOURCE_IDS             = cic(ur'(?:\[|\{)((?P<source>(anidb(|[2-4])|tvdb(|[2-6])|tmdb|tsdb|imdb|mal|youtube(|[2-3])))-(?P<id>[^\[\]\{\}]*)|(?P<yt>(PL[^\[\]\{\}]{16}|PL[^\[\]\{\}]{32}|(UU|FL|LP|RD|UC|HC)[^\[\]]{22})))(?:\]|\})')
 SOURCE_ID_FILES        = ["anidb.id", "anidb2.id", "anidb3.id", "anidb4.id", "tvdb.id", "tvdb2.id", "tvdb3.id", "tvdb4.id", "tvdb5.id", "tmdb.id", "tsdb.id", "imdb.id", "mal.id", "youtube.id", "youtube2.id", "youtube3.id"]
 SOURCE_ID_OFFSET       = cic(ur'(?P<id>\d{1,7})-(?P<season>s\d{1,3})?(?P<episode>e-?\d{1,3})?')
 ASS_MAPPING_URL        = 'https://rawgit.com/ZeroQI/Absolute-Series-Scanner/master/tvdb4.mapping.xml'
@@ -155,7 +155,7 @@ WHACK_PRE_CLEAN_RAW = [ "x264-FMD Release", "EniaHD (HEVC, WEB-DL 2160p)", "x264
                         "Anxious-He", "Coalgirls", "2xDVO.MVO", "VO.ENG.Subs", "NF.WEBRip.by.AKTEP", "(HappyLee Remastered HQ)", "Commie", "DarkDream", "Doremi", "ExiledDestiny", "Exiled-Destiny", "Exiled Destiny", "FFF", "FFFpeeps", "Hatsuyuki", "HorribleSubs",
                         "joseole99", "DCU.WEB-DL", 'web-dl', "DDP5.1", "x265-NTb", "(II Subs)", "OAR HDTV-BiA-mOt", "Shimeji", "(BD)", "(RS)", "Rizlim", "Subtidal", "Seto-Otaku", "OCZ", "_dn92__Coalgirls__", "CasStudio",
                         "BDRemux", "(BD 1920x1080 Hi10P, JPN+ENG)", "(BD 1280x720 Hi10P)", "(DVD_480p)", "(1080p_10bit)", "(1080p_10bit_DualAudio)", "(Tri.Audio)", "(Dual.Audio)", "(BD_720p_AAC)", "x264-RedBlade",
-                        "BD 1080p", "BD 960p", "BD 720p", "BD_720p", "TV 720p", "DVD 480p", "DVD 476p", "DVD 432p", "DVD 336p", "1080p.BluRay", "FLAC5.1", "x264-CTR", "1080p-Hi10p", "FLAC2.0", "DDP2.0", 
+                        "BD 1080p", "BD 960p", "BD 720p", "BD_720p", "TV 720p", "DVD 480p", "DVD 476p", "DVD 432p", "DVD 336p", "1080p.BluRay", "FLAC5.1", "x264-CTR", "1080p-Hi10p", "FLAC2.0", "DDP2.0",
                         "2160p", "(final)", "2xRus.Eng", "1920x1080", "1280x720", "848x480", "952x720", "(DVD 720x480 h264 AC3)", "(720p_10bit)", "(1080p_10bit)", "(1080p_10bit", "(BD.1080p.AAC)", "[720p]", "WEBDL", "NewStudio",
                         "H.264_AAC", "Hi10P", "Hi10", "x264", "BD 10-bit", "DXVA", "H.264", "(BD, 720p, FLAC)", "Blu-Ray", "Blu-ray",  "SD TV", "SD DVD", "HD TV",  "-dvdrip", "dvd-jap", "(DVD)", "BDRip",
                         "FLAC", "Dual Audio", "EAC3", "AC3", "AC3.5.1", "AC3-5.1", "AAC2.0", "AAC.2.0", "AAC2_0", "AAC", "1080p", 'DD2.1', 'DD5.1', "5.1",'divx5.1', "DD5_1", "TV-1", "TV-2", "TV-3", "TV-4", "TV-5",
@@ -402,10 +402,10 @@ def clean_string(string, no_parenthesis=False, no_whack=False, no_dash=False, no
   if not string: return ""                                                                                                           # if empty return empty string
   if no_parenthesis:                                                                                                                 # delete parts between parenthesis if needed
     while CS_PARENTHESIS.search(string):            string = CS_PARENTHESIS.sub(' ', string)                                         # support imbricated parrenthesis like: "Cyborg 009 - The Cyborg Soldier ((Cyborg) 009 (2001))"
-  
+
   if string.count(']') > 1 and string.count(']') == string.count('][') + 1:                                                         # remove the first two pairs of '[]' if the file name is full of brackets (Ex: [xxx][xxx][xxx][xxx].mp4)
     string = string.replace('[', ' ', 2).replace(']', ' ', 2)
-  
+
   while CS_BRACKETS.search(string):                 string = CS_BRACKETS.sub(' ', string)                                            # remove "[xxx]" groups but ep numbers inside brackets as Plex cleanup keep inside () but not inside [] #look behind: (?<=S) < position < look forward: (?!S)
   string = CS_BRACKETS_CHAR.sub(" ", string)                                                                                          # remove any remaining '{}[]' characters
   if not no_whack:
@@ -1043,7 +1043,7 @@ def Scan(path, files, media, dirs, language=None, root=None, **kwargs): #get cal
         for rx in DATE_RX:
           match = rx.search(file)  # file starts with "yyyy-mm-dd" "yyyy.mm.dd" "yyyy mm dd" or "yyyymmdd"
           if match:
-            if source=='youtube2': 
+            if source=='youtube2':
               filedate        = time.gmtime(os.path.getmtime(filename))
               season, episode = match.group('year'), '{:>02}{:>02}{:>02}{:>02}'.format(match.group('month'), match.group('day'), filedate[3], filedate[4])
             else:
